@@ -8,5 +8,6 @@
 #include "Core/TFTrainingConfig.h"
 
 #include "Data/TFImageLoader.h"
+#include "Data/FlatFloatDataBuilder.h"
 
 #include "Models/MLModel.h"

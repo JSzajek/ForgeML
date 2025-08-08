@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/TFModelDefines.h"
 #include "Core/TFUtilities.h"
 #include "Core/TFModelLayout.h"
 #include "Core/TFTrainingBatch.h"
@@ -18,8 +19,6 @@ namespace TF
 	/// </summary>
 	class MLModel
 	{
-	public:
-		using LabeledTensor = std::unordered_map<std::string, cppflow::tensor>;
 	public:
 		/// <summary>
 		/// Constructor initializing a MLModel.

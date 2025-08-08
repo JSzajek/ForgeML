@@ -1,12 +1,9 @@
 #pragma once
 
+#include "Core/TFModelDefines.h"
+
 #include <string>
 #include <vector>
-
-namespace cppflow
-{
-	class tensor;
-}
 
 namespace TF
 {
@@ -16,8 +13,11 @@ namespace TF
 	public:
 		virtual ~IDataTensorBuilder() = default;
 	public:
-		virtual cppflow::tensor BuildInputTensor(const UObject* Context) = 0;
+		virtual void AddInputTensor(const std::string& name,
+									const T& data) = 0;
 
-		virtual std::vector<std::string> GetFeatureNames() = 0;
+		virtual bool CreateTensor(LabeledTensor& output) = 0;
+
+		virtual std::vector<std::string> GetFeatureNames() { return {}; }
 	};
 }

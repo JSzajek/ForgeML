@@ -78,12 +78,15 @@ void FMLUnitTestsSpecs::Define()
 				return;
 
 
-			TF::MLModel::LabeledTensor output;
-			std::unordered_map<std::string, cppflow::tensor> inputs;
+			TF::FlatFloatDataBuilder data_builder(3);
+			data_builder.AddInputTensor("x", { 3.0f, 7.0f, 1.0f });
+			data_builder.AddInputTensor("y", { 4.0f, 2.0f, 8.0f });
 
-			inputs["x"] = cppflow::tensor({ 3.0f, 7.0f, 1.0f });
-			inputs["y"] = cppflow::tensor({ 4.0f, 2.0f, 8.0f });
+			TF::LabeledTensor inputs;
+			if (!TestTrue(TEXT("Failed Input Generation!"), data_builder.CreateTensor(inputs)))
+				return;
 
+			TF::LabeledTensor output;
 			bool run_success = model.Run(inputs, output);
 
 			if (!TestTrue(TEXT("Failed To Run Model!"), run_success))
@@ -142,11 +145,16 @@ void FMLUnitTestsSpecs::Define()
 				return;
 
 
-			TF::MLModel::LabeledTensor pre_output;
-			std::unordered_map<std::string, cppflow::tensor> inputs;
+			TF::FlatFloatDataBuilder data_builder(4, { 4, 1 });
 
-			inputs["x"] = cppflow::tensor(std::vector<float>{ 3.0f, 7.0f, 1.0f, 8.3f }, { 4, 1 });
+			data_builder.AddInputTensor("x", { 3.0f, 7.0f, 1.0f, 8.3f });
 
+			TF::LabeledTensor inputs;
+			if (!TestTrue(TEXT("Failed Input Generation!"), data_builder.CreateTensor(inputs)))
+				return;
+
+
+			TF::LabeledTensor pre_output;
 			bool run_success = model.Run(inputs, pre_output);
 
 			if (!TestTrue(TEXT("Failed To Run Model!"), run_success))
@@ -175,7 +183,7 @@ void FMLUnitTestsSpecs::Define()
 				return;
 
 
-			TF::MLModel::LabeledTensor post_output;
+			TF::LabeledTensor post_output;
 			run_success = model.Run(inputs, post_output);
 			if (!TestTrue(TEXT("Failed To Run Model After Training!"), run_success))
 				return;
@@ -233,7 +241,7 @@ void FMLUnitTestsSpecs::Define()
 			if (!TestTrue(TEXT("Failed To Load Image!"), loadedImg))
 				return;
 
-			TF::MLModel::LabeledTensor results;
+			TF::LabeledTensor results;
 			bool runSuccess = model.Run(inputs, results);
 			TestTrue(TEXT("Failed To Run Loaded Model!"), runSuccess);
 		});
