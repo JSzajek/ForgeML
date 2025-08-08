@@ -8,6 +8,11 @@
 *.vcxproj.filters
 *.sln
 
+*.pb
+*.json
+*.data*
+*.index
+
 .vs/
 .git/
 JSON/

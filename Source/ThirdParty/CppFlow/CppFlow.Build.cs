@@ -18,13 +18,13 @@ public class CppFlow : ModuleRules
             PublicSystemIncludePaths.Add(ModulePath + "Include/");
             
             // Include TPL includes path
-            PublicSystemIncludePaths.Add(ThirdPartyLibsPath + "cppflow_lib/include/");
-            PublicSystemIncludePaths.Add(ThirdPartyLibsPath + "cppflow_lib/libtensorflow-cpu-windows-x86_64/include");
+            PublicSystemIncludePaths.Add(ThirdPartyLibsPath + "CppFlow/include/");
+            PublicSystemIncludePaths.Add(ThirdPartyLibsPath + "CppFlow/libtensorflow-cpu-windows-x86_64/include");
 
             // Add TPL Library and Binaries -------------------------------------------------------
-            PublicAdditionalLibraries.Add(ThirdPartyLibsPath + "cppflow_lib/libtensorflow-cpu-windows-x86_64/lib/tensorflow.lib");
+            PublicAdditionalLibraries.Add(ThirdPartyLibsPath + "CppFlow/libtensorflow-cpu-windows-x86_64/lib/tensorflow.lib");
 
-            RuntimeDependencies.Add("$(BinaryOutputDir)/tensorflow.dll", ThirdPartyLibsPath + "cppflow_lib/libtensorflow-cpu-windows-x86_64/lib/tensorflow.dll");
+            RuntimeDependencies.Add("$(BinaryOutputDir)/tensorflow.dll", ThirdPartyLibsPath + "CppFlow/libtensorflow-cpu-windows-x86_64/lib/tensorflow.dll");
             // ------------------------------------------------------------------------------------
         }
 	}

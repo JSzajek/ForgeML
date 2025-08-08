@@ -13,7 +13,7 @@ public class JsonLib : ModuleRules
         string ModulePath = ModuleDirectory + "/";
 
         // Include UE Library Includes Path
-        PublicSystemIncludePaths.Add(ThirdPartyLibsPath + "/json_lib/include/");
+        PublicSystemIncludePaths.Add(ThirdPartyLibsPath + "/JsonLib/include/");
         PublicSystemIncludePaths.Add(ModulePath + "Include/");
 	}
 }

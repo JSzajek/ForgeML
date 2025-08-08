@@ -18,10 +18,10 @@ public class OpenCVLib : ModuleRules
             PublicSystemIncludePaths.Add(ModulePath + "Include/");
 
             // Include TPL includes path
-            PublicSystemIncludePaths.Add(ThirdPartyLibsPath + "opencv_lib/include/");
+            PublicSystemIncludePaths.Add(ThirdPartyLibsPath + "OpenCV/include/");
 
             // Add TPL Library and Binaries -------------------------------------------------------
-            string LibPath = Path.Combine(ThirdPartyLibsPath, "opencv_lib/Release/lib");
+            string LibPath = Path.Combine(ThirdPartyLibsPath, "OpenCV/Release/lib");
             DirectoryInfo libInfo = new DirectoryInfo(LibPath);
             if (libInfo.Exists)
             {
@@ -33,7 +33,7 @@ public class OpenCVLib : ModuleRules
             }
 
 
-            DirectoryInfo dllinfo2 = new DirectoryInfo(Path.Combine(ThirdPartyLibsPath, "opencv_lib/Release/bin"));
+            DirectoryInfo dllinfo2 = new DirectoryInfo(Path.Combine(ThirdPartyLibsPath, "OpenCV/Release/bin"));
             if (dllinfo2.Exists)
             {
                 FileInfo[] files = dllinfo2.GetFiles("*.dll");
