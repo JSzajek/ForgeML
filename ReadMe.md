@@ -1,136 +1,143 @@
-# CLWorks a OpenCL Plugin for Unreal Engine
-CLWorks provides an OpenCL integration plugin for Unreal Engine. Enabling low-level access to GPU compute capabilities from within UE Projects. It forms a bridge between OpenCL compute kernels and Unreal Engine data structures (i.e. UTexture, FRHIBuffer, etc.). Allowing the use of GPU compute across AMD, Intel, and NVIDIA hardware.
+# ForgeML a TensorFlow C++ Plugin for Unreal Engine
+ForgeML is a C++/Python hybrid toolkit designed to simplify the process of training TensorFlow models in Python and running them in C++ with `cppflow`. Allowing for the use of model inference and training in UE at realtime. it handles everything from dataset preparations to model training, validation, checkpointing, and inference.
+
 
 ## Features
-- Load/Compile and Execute OpenCL program at runtime.
-- Transfer data to and from OpenCL buffers and images.
-- Synchronize results into corresponding Unreal Engine UTextures types.
-- Integrated Unit Test support using Unreal Engine's automation framework.
-- Cross-platform design supporting Windows and Linux.
+- Train in Python
+- Automatic Image Loader - Loads images with OpenCV and reshapes them to the correct tensor format.
+- Supports Any Model Shape - Easily specify [batch, channels, height, width] or other combinations.
+- Inference Wrapper - Run trained TensorFlow models with `cppflow`.
+- Model Checkpoints - Save the best performing model automatically.
+- ONNX/Keras Loading and Conversions.
+
 
 ## Use Cases
-- **Custom GPU Compute Shaders**: Bypass HLSL material limitations and graphics pipeline restrictions by using OpenCL programs directly.
-- **Offline Processing**: Use the GPU for mesh generation, image processing, or data analysis.
-- **Physics or Simulation Pipelines**: Run GPU parallel computations (e.g. fluid, cloth, or particle systems).
-- **Scientific or Data-Driven UE Apps**: Visualize and process large datasets on the GPU.
+#### Gameplay AI & Procedural Content
+- **NPC Behavior Learning**: Train models in Python that learn movement patterns, decision-making, or combat strategies. With real-time inference in UE without Python overhead.
+- **Procedural Animation**: Use deep learning to generate animations (e.g. character locomotion, facial expressions) based on context.
+- **Level Generation**: Procedurally generate terrain, cities, or puzzles from trained neural networks.
+
+#### Computer Vision in Games & Simulation
+- **Object Detection & Tracking**: Train YOLO or custom CNNs in Python, deploy in UE for AR/VR experiences or AI vision systems.
+- **Gesture Recognition**: Recognize player gestures from camera input to control gameplay.
+- **Visual SLAM Enhancement**: Augment UE's AR tracking with learned features.
+
+#### Simulation & training
+- **Robotics Simulation**: Use reinforcement learning in Python, then deploy agents in UE environments for real-time feedback.
+- **Driver or Pilot Training**: AI can simulate complex behaviors for traffic, weather, or crowd systems.
+- **Industrial Simulations**: Predict failures or optimize processes visually.
+
 
 ## Installation
 1) Clone into your Unreal Engine project `Plugins/` folder.
-    - Example: `git clone https://github.com/JSzajek/CLWorks.git Plugins/CLWorks`
+    - Example: `git clone https://github.com/JSzajek/ForgeML.git Plugins/ForgeML`
 2) Generate the Visual Studio project files (if necessary).
+
 
 ## Testing
 The plugin utilizes Unreal Engine automation framework's SPECs(). It is possible to execute those test in two ways:
 1) Command line execution:
-   - `UnrealEditor-Cmd.exe <PROJECT_HERE.uproject> -ExecCmds="Automation RunTests CLWorks Unit Test" -unattended -nopause`
+   - `UnrealEditor-Cmd.exe <PROJECT_HERE.uproject> -ExecCmds="Automation RunTests ForgeML Unit Test" -unattended -nopause`
 2) Editor execution:
    - Open `Tools` -> `Session Frontend`. Navigate to the `Automation` tab.
    - Run the "CLWorks Unit Test" tests.
 
 
+## **Features**
+#### Model Definition and Training
+- Build models using TensorFlow/Keras with a consistent, JSON-defined layout structure.
+- Automatically supports conversion of `ONNX` to `SavedModel` format.
+- Modular `ModelLayout` architecture allows easy customization of layers: Conv1D/2D, MaxPooling, Dense, Dropout, etc.
+- Integrated training pipeline for classification tasks with automatic dataset loading and splitting.
+
+#### Model Conversion Utilities
+- Converts `ONNX` to TensorFlow `SavedModel`.
+  - Conversion chain is ONNX to Keras to SavedModel.
+- Extract and exports model meta data including input/output tensor names.
+- Label map generation and export to JSON.
+
+
+#### Image Pre-Processing & Tensor Conversion
+- OpenCV based image loader that resized, normalizes, and converts images to any tensor layout.
+- Flexible pixel access and image tensor packing based on user-defined shape order.
+- SUpport automatic channel conversion.
+- Seamless integration with `cppflow::tensor` for model inference.
+
+
 ## Core Classes
-### CLContext
-Represents an OpenCL context. Manages the lifetime of all OpenCL resources (programs, buffers, images, etc.) and encapsulates the selected platform and device.
- - Automatically created or can be user-managed.
- - Central hub for GPU resource management.
-> Blueprint Note: When Using Blueprints, a shared global context is provided automatically unless manually overridden. 
-
-### CLDevice
-Represents an OpenCL-capable device (GPU or CPU).
-- Use this to query capabilities, memory size, supported extensions, etc.
-
-### CLProgram/CLProgamAsset
-Represents a compiled OpenCL shader program.
- - Program Asset source code is editable in Unreal Editor.
- - Supports multi-kernel source files.
-> Editor Note: Source code text editor is provided in the Editor and provides both compilation checking and error logging to expedite development.
+### MLModel
+Represents a Tensorflow model. Manages the lifetime and loading and training of a Tensorflow model.
 
 
-### CLCommandQueue
-Represents the command queue used to dispatch program execution and memory transfers.
-- Created per context/device.
-- Suuports async dispatches (if avaliable).
-> Blueprint Note: When Using Blueprints, a shared global command queue is provided automatically unless manually overridden. 
+### TF Image Loader
+Wrapper that takes any `OpenCV` image and automatically reshapes it for TensorFlow models.
 
-
-### CLBuffer
-Represents a linear memory buffer (e.g. float[], int[], struct[]).
-- Mappable to and from Unreal TArrays (i.e. TArray\<float>).
-- Can be shared and transferred between CPU and GPU.
-> Blueprint Note: Compatible functions are Upload and Readback.
-
-### CLImage
-Represents a 2D or 3D image or image array.
-- Ideal for texture style data and operations.
-- Read/Write support.
-- Compatible with Unreal Textures (UTexture2D, UTexture2DArray).
-
-## Blueprints
-### Control Paths & Program
-![BP Control](./Resources/BP_Control.png)
-
-### Buffer
-![BP Buffer Creation](./Resources/BP_Buffer_Creation.png)
-![BP Buffer Read](./Resources/BP_Buffer_Read.png)
-
-### Image
-![BP Image](./Resources/BP_Image.png)
-
-
-
-## Editor
-### Program Editor
-![Editor](./Resources/Program_Editor.png)
 
 ## Example Usage
-#### Program 
+#### Model Creation 
 ```
-OpenCL::Device device;
-OpenCL::Context context(device);
+TF::MLModel model("<model_name>");
 
-OpenCL::Program program(context, mDefaultDevice);
-program.ReadFromString("__kernel void test() { }");
+model.AddInput("x", 
+			   TF::DataType::Float32,
+			   { -1 });
+
+model.AddInput("y", 
+			   TF::DataType::Float32,
+			   { -1 });
+
+model.AddOutput("add_result");
+
+model.AddLayer(TF::LayerType::Add,
+{
+	{ "input_names", { "x", "y" } },
+	{ "output_name", "add_result" }
+});
+
+if (!model.CreateModel())
+{
+	// Error Creating
+}
 ```
 
-#### Buffer Creation
+#### Model Inference
 ```
-OpenCL::Device device;
-OpenCL::Context context(device);
-
-const size_t count = 10;
-std::vector<float> src_data(count, 0.0f);
-OpenCL::Buffer buffer(context, 
-                      src_data.data(), 
-                      count * sizeof(float), 
-                      OpenCL::AccessType::READ_WRITE,
-                      OpenCL::MemoryStrategy::STREAM);
+TF::MLModel::Result results;
+if (model.Run(inputs, results))
+{
+   // Print/Use Results
+}
 ```
 
-#### Texture Creation
+#### Image Pre-Processing
 ```
-OpenCL::Device device;
-OpenCL::Context context(device);
+TF::ImageTensorLoader image_loader(target_width, 
+                                   target_height, 
+                                   1, 
+                                   true, 
+                                   TF::ChannelOrder::GrayScale,
+                                   TF::ShapeOrder::WidthHeightChannels);
 
-OpenCL::Image cltexture(context,
-                        mDefaultDevice,
-                        256, 
-                        256, 
-                        1,		
-                        OpenCL::Image::Format::RGBA8, 
-                        OpenCL::Image::Type::Texture2D,
-                        OpenCL::AccessType::READ_WRITE);
+
+std::unordered_map<std::string, cppflow::tensor> inputs;
+if (!image_loader.Load("<insert filepath>", inputs["<input label>"]))
+{
+	// Error Reading
+}
 ```
 
 ### Dependencies
- - OpenCL 1.2 or later (avaliable via CPU or GPU drivers).
- - Unreal Engine 5.0+.
+ - Python (3.10.11)
+   - Minimum Requirements
+     - Tensorflow (2.13)
+     - Keras (2.13.1)
+     - Onnx2Keras (https://github.com/gmalivenko/onnx2keras)
+     - Onnx (1.14.1)
  - C++20 compatible compiler.
 
 ### Future Roadmap
-- [ ] Texture3D Support
-- [ ] Benchmarking Framework
-- [ ] Asynchronous Data Transfer
-- [ ] Vulkan/DirectX12 Interop
+- [ ] Embedded Python
+- [ ] Model Checkpointing
 
 ### License
 Licenses Under the **Apache 2.0** License.
