@@ -1,0 +1,9 @@
+[submodule "ThirdParty/OpenCV"]
+	path = ThirdParty/OpenCV
+	url = https://github.com/JSzajek/OpenCV-Lib-fork.git
+[submodule "ThirdParty/JsonLib"]
+	path = ThirdParty/JsonLib
+	url = https://github.com/JSzajek/Json-Lib-fork.git
+[submodule "ThirdParty/CppFlow"]
+	path = ThirdParty/CppFlow
+	url = https://github.com/JSzajek/CppFlow-Lib-fork.git
