@@ -47,12 +47,14 @@ namespace TF
 		// Learning rate for the optimizer
 		float learning_rate = 0.001f;
 
+		// Discount factor for future rewards (used in reinforcement learning)
+		float gamma = 0.95f;
+
 		// Whether to shuffle the training data
 		bool shuffle = true;
 
 		// Fraction of data to reserve for validation
 		float validation_split = 0.0f;
-		
 
 
 		// TODO:: Implement these options

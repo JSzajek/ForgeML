@@ -35,6 +35,7 @@ namespace TF
 		result["epochs"] = epochs;
 		result["batch_size"] = batch_size;
 		result["learning_rate"] = learning_rate;
+		result["gamma"] = gamma;
 		result["shuffle"] = shuffle;
 		result["validation_split"] = validation_split;
 		// Add other fields as needed
@@ -52,6 +53,8 @@ namespace TF
 			config.batch_size = inputJson["batch_size"].get<uint32_t>();
 		if (inputJson.contains("learning_rate"))
 			config.learning_rate = inputJson["learning_rate"].get<float>();
+		if (inputJson.contains("gamma"))
+			config.gamma = inputJson["gamma"].get<float>();
 		if (inputJson.contains("shuffle"))
 			config.shuffle = inputJson["shuffle"].get<bool>();
 		if (inputJson.contains("validation_split"))

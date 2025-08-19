@@ -5,6 +5,8 @@
 #include "Interfaces/IPluginManager.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
 
+#include <regex>
+#include <unordered_set>
 
 namespace TF
 {
@@ -24,6 +26,11 @@ namespace TF
 		std::filesystem::path pluginDir = TCHAR_TO_UTF8(*(IPluginManager::Get().FindPlugin("ForgeML")->GetBaseDir()));
 
 		mScriptDirectory = std::filesystem::canonical(pluginDir / "PythonScripts").string();
+	}
+
+	MLModel::~MLModel()
+	{
+		mpModel = nullptr;
 	}
 
 	bool MLModel::LoadFrom(const std::filesystem::path& loadpath,
@@ -76,7 +83,7 @@ namespace TF
 			<< "/extract_model_info.py\""
 			<< " \"" << output_path << "\"";
 
-		if (!ConsoleUtils::Execute(cmd.str().c_str()))
+		if (ConsoleUtils::Execute(cmd.str().c_str()) < 0)
 		{
 			std::cerr << "Failed to Extract Info From SavedModel {" << output_path << "}" << std::endl;
 			return false;
@@ -84,6 +91,115 @@ namespace TF
 
 		// Load JSON with input/output tensor names
 		std::ifstream in(output_path + "/cppflow_io_names.json");
+		if (!in.is_open())
+		{
+			std::cerr << "Failed to open cppflow_io_names.json" << std::endl;
+			return false;
+		}
+
+		nlohmann::json io_names;
+		in >> io_names;
+
+		for (auto& [key, val] : io_names["outputs"].items())
+		{
+			const std::string ioName = val.get<std::string>();
+			mOutputIONamesMap[ioName] = key;
+			mOutputIONames.push_back(ioName);
+		}
+
+		for (auto& [key, val] : io_names["inputs"].items())
+			mInputToIONamesMap[key] = val.get<std::string>();
+
+
+		{
+			const std::scoped_lock lock(mModelMutex);
+			mpModel = std::make_unique<cppflow::model>(model_path);
+		}
+		return true;
+	}
+
+	bool MLModel::DoesModelExists()
+	{
+		const std::string model_path = GetModelRoot();
+		if (!std::filesystem::exists(model_path))
+			return false;
+		return true;
+	}
+
+	bool MLModel::LoadIfExists(int32_t version)
+	{
+		std::regex pattern(R"(Saved_(\d+))"); // captures the number after saved_
+		std::unordered_set<int> savedNumbers;
+
+		std::filesystem::path dir = GetModelRoot();
+
+		if (std::filesystem::exists(dir) && std::filesystem::is_directory(dir))
+		{
+			for (const auto& entry : std::filesystem::directory_iterator(dir))
+			{
+				if (entry.is_regular_file() || entry.is_directory())
+				{
+					std::smatch match;
+					std::string name = entry.path().filename().string();
+					if (std::regex_match(name, match, pattern))
+					{
+						if (match.size() == 2)
+						{
+							savedNumbers.insert(std::stoi(match[1].str()));
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			std::cerr << "Model Directory Does Not Exist: " << dir << std::endl;
+			return false;
+		}
+
+		if (savedNumbers.empty())
+		{
+			std::cerr << "No Saved Models Found In Directory: " << dir << std::endl;
+			return false;
+		}
+
+
+		if (version == -1)
+		{
+			mModelVersion = *std::max_element(savedNumbers.begin(), savedNumbers.end());
+		}
+		else if (savedNumbers.find(version) != savedNumbers.end())
+		{
+			mModelVersion = version;
+		}
+		else
+		{
+			std::cerr << "Requested Model Version Not Found: " << version << std::endl;
+			return false;
+		}
+
+		const std::string model_path = CreateModelName();
+		if (!std::filesystem::exists(model_path))
+		{
+			std::cerr << "Load Model Path Does Not Exist: " << model_path << std::endl;
+			return false;
+		}
+
+
+		std::stringstream cmd;
+		cmd << "python \"" 
+			<< mScriptDirectory 
+			<< "/extract_model_info.py\""
+			<< " \"" << model_path << "\"";
+
+		if (ConsoleUtils::Execute(cmd.str().c_str()) < 0)
+		{
+			std::cerr << "Failed to Extract Info From SavedModel {" << model_path << "}" << std::endl;
+			return false;
+		}
+
+		// Load JSON with input/output tensor names
+		std::ifstream in(model_path + "/cppflow_io_names.json");
 		if (!in.is_open())
 		{
 			std::cerr << "Failed to open cppflow_io_names.json" << std::endl;
@@ -143,10 +259,10 @@ namespace TF
 		});
 	}
 
-	void MLModel::AddTrainingData(const std::string& input_name, 
-								  const nlohmann::json& input_values,
-								  const std::string& label_name,
-								  const nlohmann::json& label_outputs)
+	void MLModel::AddSupervisedTrainingData(const std::string& input_name, 
+											const nlohmann::json& input_values,
+											const std::string& label_name,
+											const nlohmann::json& label_outputs)
 	{
 		NamedInput input;
 		input.mName = input_name;
@@ -156,8 +272,22 @@ namespace TF
 		label.mName = label_name;
 		label.mData = label_outputs;
 
-		mCurrentTrainingBatch.mInputs.push_back(input);
-		mCurrentTrainingBatch.mLabels.push_back(label);
+		mSupervisedTrainingBatch.mInputs.push_back(input);
+		mSupervisedTrainingBatch.mLabels.push_back(label);
+	}
+
+	void MLModel::AddRewardData(const nlohmann::json& state_values,
+								const nlohmann::json& action_values, 
+								float reward,
+								const nlohmann::json& next_state_values)
+	{
+		RewardData sample;
+		sample.mState = state_values;
+		sample.mAction = action_values;
+		sample.mReward = reward;
+		//sample.mNextState = next_state_values;
+
+		mRewardTrainingBatch.mSamples.push_back(sample);
 	}
 
 	void MLModel::SaveLayoutJson(const std::filesystem::path& path) const
@@ -167,7 +297,7 @@ namespace TF
 
 	void MLModel::SaveTrainingJson(const std::filesystem::path& path) const
 	{
-		mCurrentTrainingBatch.WriteToFile(path);
+		mSupervisedTrainingBatch.WriteToFile(path);
 	}
 
 	bool MLModel::CreateModel()
@@ -189,7 +319,7 @@ namespace TF
 					  << " \"0\"";
 
 		std::string output;
-		if (!ConsoleUtils::Execute(python_script.str().c_str(), &output))
+		if (ConsoleUtils::Execute(python_script.str().c_str(), &output) < 0)
 		{
 			std::cerr << "Failed Model Creation {" << mName << "}: \n\t" << output << std::endl;
 			return false;
@@ -233,27 +363,34 @@ namespace TF
 	bool MLModel::TrainModel(uint32_t epochs,
 							 uint32_t batchSize, 
 							 float learning_rate, 
+							 float gamma,
 							 bool shuffle, 
-							 float validation_split)
+							 float validation_split,
+							 bool clean_data)
 	{
-		if (mCurrentTrainingBatch.mInputs.empty() || mCurrentTrainingBatch.mLabels.empty())
+		const bool hasSupervised = mSupervisedTrainingBatch;
+		const bool hasReward = mRewardTrainingBatch;
+		if (!hasSupervised && !hasReward)
 			return false;
-
-
+		
 		TF::TrainingConfig config;
 		config.epochs			= epochs;
 		config.batch_size		= batchSize;
 		config.learning_rate	= learning_rate;
+		config.gamma			= gamma;
 		config.shuffle			= shuffle;
 		config.validation_split = validation_split;
 
 		const std::string model_path_root = GetModelRoot();
-		std::string training_config_path = model_path_root + "/train/train_config.json";
-		std::string training_data_path = model_path_root + "/train/train_data.json";
+		config.WriteToFile(model_path_root + "/train/train_config.json");
 
-		config.WriteToFile(training_config_path);
 
-		mCurrentTrainingBatch.WriteToFile(model_path_root + "/train/train_data.json");
+		if (mSupervisedTrainingBatch)
+			mSupervisedTrainingBatch.WriteToFile(model_path_root + "/train/s-train_data.json");
+
+		if (mRewardTrainingBatch)
+			mRewardTrainingBatch.WriteToFile(model_path_root + "/train/r-train_data.json");
+
 
 		std::stringstream trainCmd;
 		trainCmd << "python \"" 
@@ -261,12 +398,10 @@ namespace TF
 				 << "/train_model_from_json.py\""
 				 << " \"" << model_path_root << "\""
 				 << " \"" << mModelVersion.load() << "\""
-				 << " \"" << mModelVersion.load() + 1 << "\""
-				 << " \"" << training_config_path << "\""
-				 << " \"" << training_data_path << "\"";
+				 << " \"" << mModelVersion.load() + 1 << "\"";
 
 		std::string output;
-		if (!ConsoleUtils::Execute(trainCmd.str().c_str(), &output))
+		if (ConsoleUtils::Execute(trainCmd.str().c_str(), &output) < 0)
 		{
 			std::cerr << "Failed Execute Training On {" << mName << "}: \n\t" << output << std::endl;
 			return false;
@@ -279,6 +414,12 @@ namespace TF
 			const std::scoped_lock lock(mModelMutex);
 			const std::string output_path = CreateModelName(++mModelVersion);
 			mpModel = std::make_unique<cppflow::model>(output_path);
+		}
+
+		if (clean_data)
+		{
+			mSupervisedTrainingBatch.Clear();
+			mRewardTrainingBatch.Clear();
 		}
 
 		return true;
@@ -339,7 +480,11 @@ namespace TF
 			std::filesystem::create_directories(dir_path);
 
 		mLayout.WriteToFile(dir_path / "model_layout.json");
-		mCurrentTrainingBatch.WriteToFile(dir_path / "train_data.json");
+
+		if (mSupervisedTrainingBatch)
+			mSupervisedTrainingBatch.WriteToFile(dir_path / "s-train_data.json");
+		if (mRewardTrainingBatch)
+			mRewardTrainingBatch.WriteToFile(dir_path / "r-train_data.json");
 
 		std::cout << "Model and Training Data Exported to: " << dir_path << std::endl;
 	}

@@ -109,7 +109,7 @@ void FMLUnitTestsSpecs::Define()
 			}
 		});
 
-		It("(3) Train Model", [this]()
+		It("(3) Train Supervised Model", [this]()
 		{
 			TF::MLModel model("linear");
 
@@ -162,20 +162,20 @@ void FMLUnitTestsSpecs::Define()
 
 
 			// Add Training Data ------------------------------------------------------------------
-			model.AddTrainingData("x", 
-								  { 5.1f, 3.5f, 1.4f, 0.2f }, 
-								  "y", 
-								  { 1.0f, 0.0f });
+			model.AddSupervisedTrainingData("x", 
+											{ 5.1f, 3.5f, 1.4f, 0.2f }, 
+											"y", 
+											{ 1.0f, 0.0f });
 
-			model.AddTrainingData("x", 
-								  { 6.2f, 3.4f, 5.4f, 2.3f }, 
-								  "y", 
-								  { 0, 0.5f });
+			model.AddSupervisedTrainingData("x", 
+											{ 6.2f, 3.4f, 5.4f, 2.3f }, 
+											"y", 
+											{ 0, 0.5f });
 
-			model.AddTrainingData("x", 
-								  { 0.2f, 6.8f, 9.1f, 1.2f }, 
-								  "y", 
-								  { 0, 1.0f });
+			model.AddSupervisedTrainingData("x", 
+											{ 0.2f, 6.8f, 9.1f, 1.2f }, 
+											"y", 
+											{ 0, 1.0f });
 			// ------------------------------------------------------------------------------------
 
 			bool train_success = model.TrainModel(64);
@@ -194,7 +194,7 @@ void FMLUnitTestsSpecs::Define()
 
 			for (size_t i = 0; i < post_result_data.size(); ++i)
 			{
-				const FString error_str = FString::Printf(TEXT("Result Value Mismatch After Training! Index: %zu, Expected: %f, Got: %f"),
+				const FString error_str = FString::Printf(TEXT("Result Value Matched After Training! Index: %zu, Pre: %f, Post: %f"),
 														  i,
 														  pre_output["y"].get_data<float>()[i],
 														  post_result_data[i]);
@@ -204,7 +204,99 @@ void FMLUnitTestsSpecs::Define()
 			}
 		});
 
-		It("(4) Load Model", [this]()
+		It("(4) Train Reward Model", [this]()
+		{
+			TF::MLModel model("predictor");
+
+			model.AddInput("view_state", 
+						   TF::DataType::Float32, 
+						   { -1, 4, 1 });
+
+			model.AddOutput("action");
+
+			model.AddLayer(TF::LayerType::Flatten,
+			{
+				{ "input_name", "view_state" },
+				{ "output_name", "flat_input" }
+			});
+
+			model.AddLayer(TF::LayerType::Dense,
+			{
+				{ "input_name", "flat_input" },
+				{ "units", 16 },
+				{ "output_name", "dense_1" },
+			});
+
+			model.AddLayer(TF::LayerType::Dense,
+			{
+				{ "input_name", "dense_1" },
+				{ "units", 1 },
+				{ "output_name", "action" },
+			});
+
+
+			bool created = model.CreateModel();
+			if (!TestTrue(TEXT("Failed To Create Model!"), created))
+				return;
+
+
+			TF::FlatFloatDataBuilder data_builder(4, { 4, 1 });
+
+			data_builder.AddInputTensor("view_state", { 0.0f, 1.0f, 0.0f, 1.0f });
+
+			TF::LabeledTensor inputs;
+			if (!TestTrue(TEXT("Failed Input Generation!"), data_builder.CreateTensor(inputs)))
+				return;
+
+
+			TF::LabeledTensor pre_output;
+			bool run_success = model.Run(inputs, pre_output);
+
+			if (!TestTrue(TEXT("Failed To Run Model!"), run_success))
+				return;
+
+
+			// Add Training Data ------------------------------------------------------------------
+			model.AddRewardData({ 0.1f, 0.5f, 0.3f, 0.0f },
+								{ 2.0f },
+								1.0f);
+
+			model.AddRewardData({ 0.0f, 0.0f, 0.8f, 0.1f },
+								{ 1.0f },
+								-0.5f);
+
+			model.AddRewardData({ 0.9f, 0.4f, 0.1f, 0.7f },
+								{ 3.0f },
+								0.2f);
+			// ------------------------------------------------------------------------------------
+
+			bool train_success = model.TrainModel(64);
+			if (!TestTrue(TEXT("Failed To Train Model!"), train_success))
+				return;
+
+
+			TF::LabeledTensor post_output;
+			run_success = model.Run(inputs, post_output);
+			if (!TestTrue(TEXT("Failed To Run Model After Training!"), run_success))
+				return;
+
+			cppflow::tensor result = post_output["action"];
+			const std::vector<float> post_result_data = result.get_data<float>();
+			TestEqual(TEXT("Result Size Mismatch After Training!"), post_result_data.size(), 1u);
+
+			for (size_t i = 0; i < post_result_data.size(); ++i)
+			{
+				const FString error_str = FString::Printf(TEXT("Result Value Matched After Training! Index: %zu, Pre: %f, Post: %f"),
+														  i,
+														  pre_output["action"].get_data<float>()[i],
+														  post_result_data[i]);
+
+				if (!TestNotEqual(error_str, post_result_data[i], pre_output["action"].get_data<float>()[i]))
+					return;
+			}
+		});
+
+		It("(5) Load Model", [this]()
 		{
 			TF::MLModel model("BirdClassifier");
 
@@ -244,6 +336,39 @@ void FMLUnitTestsSpecs::Define()
 			TF::LabeledTensor results;
 			bool runSuccess = model.Run(inputs, results);
 			TestTrue(TEXT("Failed To Run Loaded Model!"), runSuccess);
+		});
+
+		It("(6) Create & Reload Model", [this]()
+		{
+			{
+				TF::MLModel model("simple_model");
+
+				model.AddInput("x", 
+							   TF::DataType::Float32,
+							   { -1 });
+
+				model.AddOutput("add_result");
+
+				model.AddLayer(TF::LayerType::Add,
+				{
+					{ "input_names", { "x" } },
+					{ "output_name", "add_result" }
+				});
+
+				bool created = model.CreateModel();
+				if (!TestTrue(TEXT("Failed To Create Model!"), created))
+					return;
+			}
+
+			{
+
+				TF::MLModel model2("simple_model");
+
+				bool reloaded = model2.LoadIfExists();
+
+				if (!TestTrue(TEXT("Failed To Reload Model!"), reloaded))
+					return;
+			}
 		});
 	});
 }

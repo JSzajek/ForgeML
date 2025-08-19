@@ -5,7 +5,7 @@
 
 namespace TF
 {
-	class FlatFloatDataBuilder : public IDataTensorBuilder<std::vector<float>>
+	class FORGEML_API FlatFloatDataBuilder : public IDataTensorBuilder<std::vector<float>>
 	{
 	public:
 		FlatFloatDataBuilder(uint32_t size,

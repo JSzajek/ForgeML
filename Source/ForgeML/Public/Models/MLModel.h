@@ -17,7 +17,7 @@ namespace TF
 	/// <summary>
 	/// Class representing a Machine Learning Model that can be used for training and inference.
 	/// </summary>
-	class MLModel
+	class FORGEML_API MLModel
 	{
 	public:
 		/// <summary>
@@ -27,6 +27,11 @@ namespace TF
 		/// <param name="output">The output path</param>
 		MLModel(const std::string& modelname,
 				const std::filesystem::path& output = "");
+
+		/// <summary>
+		/// Default destructor.
+		/// </summary>
+		~MLModel();
 	public:
 		/// <summary>
 		/// Loads Pre-Trained Models. Currently Only Supports loading ONNX or SavedModel format models.
@@ -40,6 +45,20 @@ namespace TF
 		/// <returns>True if the load was successful</returns>
 		bool LoadFrom(const std::filesystem::path& loadpath,
 					  const std::filesystem::path& output = "");
+
+		/// <summary>
+		/// Checks whether the current model exists.
+		/// </summary>
+		/// <returns>True if the model exists</returns>
+		bool DoesModelExists();
+
+		/// <summary>
+		/// Loads the model at a specific version number if it exists.
+		/// Or the latest if -1 is passed.
+		/// </summary>
+		/// <param name="version">The version number</param>
+		/// <returns>True if the model exists and loads</returns>
+		bool LoadIfExists(int32_t version = -1);
 
 		/// <summary>
 		/// Adds an input to the model.
@@ -68,16 +87,21 @@ namespace TF
 					  const std::unordered_map<std::string, nlohmann::json>& params);
 
 		/// <summary>
-		/// Adds training data to the model.
+		/// Adds supervised training data to the model.
 		/// </summary>
 		/// <param name="input_name">The input name of the training batch</param>
 		/// <param name="input_values">The input values</param>
 		/// <param name="label_name">The label name of the training batch</param>
 		/// <param name="label_outputs">The label outputs</param>
-		void AddTrainingData(const std::string& input_name, 
-						     const nlohmann::json& input_values,
-						     const std::string& label_name,
-						     const nlohmann::json& label_outputs);
+		void AddSupervisedTrainingData(const std::string& input_name, 
+									   const nlohmann::json& input_values,
+									   const std::string& label_name,
+									   const nlohmann::json& label_outputs);
+
+		void AddRewardData(const nlohmann::json& state_values,
+						   const nlohmann::json& action_values,
+						   float reward,
+						   const nlohmann::json& next_state_values = {});
 
 		/// <summary>
 		/// Save the model layout to a JSON file.
@@ -106,12 +130,15 @@ namespace TF
 		/// <param name="learning_rate">The learning rate</param>
 		/// <param name="shuffle">Whether to shuffle the training</param>
 		/// <param name="validation_split">The validation split</param>
+		/// <param name="clean_data">Whether to clear the training data after this training session</param>
 		/// <returns>True if the training was successful</returns>
 		bool TrainModel(uint32_t epochs = 10,
 						uint32_t batchSize = 32,
 						float learning_rate = 0.001f,
+						float gamma = 0.95f,
 						bool shuffle = true,
-						float validation_split = 0.0f);
+						float validation_split = 0.0f,
+						bool clean_data = true);
 
 		/// <summary>
 		/// Runs the model with the given input tensors and returns the output.
@@ -167,6 +194,7 @@ namespace TF
 		std::unordered_map<std::string, std::string> mOutputIONamesMap;
 		std::vector<std::string> mOutputIONames;
 
-		TrainingBatch mCurrentTrainingBatch;
+		LabeledTrainingBatch mSupervisedTrainingBatch;
+		RewardTrainingBatch mRewardTrainingBatch;
 	};
 }

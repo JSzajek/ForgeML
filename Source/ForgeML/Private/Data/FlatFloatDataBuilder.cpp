@@ -47,6 +47,8 @@ namespace TF
 		for (const auto& [key, tensor] : mInputTensors)
 			output[key] = tensor;
 
+		mInputTensors.clear();
+
 		return true;
 	}
 

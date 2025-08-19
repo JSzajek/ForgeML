@@ -37,7 +37,7 @@ namespace TF
 	/// <summary>
 	/// Struct representing a loader for image tensors.
 	/// </summary>
-	struct ImageTensorLoader 
+	struct FORGEML_API ImageTensorLoader
 	{
 	public:
 		/// <summary>
