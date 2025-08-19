@@ -183,6 +183,7 @@ namespace TF
 
 		std::unique_ptr<cppflow::model> mpModel = nullptr;
 		std::mutex mModelMutex = {};
+		std::mutex mTrainingMutex = {};
 
 		std::string mScriptDirectory;
 		std::string mOutputDirectory;

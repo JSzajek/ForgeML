@@ -264,6 +264,8 @@ namespace TF
 											const std::string& label_name,
 											const nlohmann::json& label_outputs)
 	{
+		const std::scoped_lock lock(mTrainingMutex);
+
 		NamedInput input;
 		input.mName = input_name;
 		input.mData = input_values;
@@ -281,6 +283,8 @@ namespace TF
 								float reward,
 								const nlohmann::json& next_state_values)
 	{
+		const std::scoped_lock lock(mTrainingMutex);
+
 		RewardData sample;
 		sample.mState = state_values;
 		sample.mAction = action_values;
@@ -368,6 +372,8 @@ namespace TF
 							 float validation_split,
 							 bool clean_data)
 	{
+		const std::scoped_lock lock(mTrainingMutex);
+
 		const bool hasSupervised = mSupervisedTrainingBatch;
 		const bool hasReward = mRewardTrainingBatch;
 		if (!hasSupervised && !hasReward)
@@ -411,7 +417,8 @@ namespace TF
 
 		// Update Model
 		{
-			const std::scoped_lock lock(mModelMutex);
+			const std::scoped_lock model_lock(mModelMutex);
+
 			const std::string output_path = CreateModelName(++mModelVersion);
 			mpModel = std::make_unique<cppflow::model>(output_path);
 		}
@@ -428,12 +435,6 @@ namespace TF
 	bool MLModel::Run(const LabeledTensor& input_tensors,
 					  LabeledTensor& output)
 	{
-		{
-			const std::scoped_lock lock(mModelMutex);
-			if (!mpModel)
-				return false;
-		}
-
 		if (mOutputIONamesMap.empty())
 			return false;
 
@@ -453,6 +454,10 @@ namespace TF
 		std::vector<cppflow::tensor> results;
 		{
 			const std::scoped_lock lock(mModelMutex);
+
+			if (!mpModel)
+				return false;
+
 			results = std::move((*mpModel)(inputs_vec, mOutputIONames));
 		}
 

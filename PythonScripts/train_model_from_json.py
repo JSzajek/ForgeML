@@ -148,6 +148,12 @@ def train_with_reward(model, layout, train_config, train_data):
     targets = rewards + gamma * (1 - dones) * q_next
     targets = targets.reshape(-1, 1)
 
+    early_stop = tf.keras.callbacks.EarlyStopping(
+        monitor='loss',
+        patience=5,        # how many epochs with no improvement before stopping
+        restore_best_weights=True
+    )
+
     # Now just fit the model with (states, targets)
     history = model.fit(
         states,
@@ -155,7 +161,8 @@ def train_with_reward(model, layout, train_config, train_data):
         epochs=train_config.get("epochs", 1),
         batch_size=train_config.get("batch_size", 32),
         verbose=1,
-        shuffle=True
+        shuffle=True,
+        callbacks=[early_stop]
     )
 
     print(f"[RL Training] Final Loss: {history.history['loss'][-1]:.4f} from {len(states)} samples")
