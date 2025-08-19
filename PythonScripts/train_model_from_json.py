@@ -92,7 +92,6 @@ def train_with_reward(model, layout, train_config, train_data):
     print("Reward-Based Training Detected...")
 
     # --- Check model output dimension ---
-    test_input_shape = model.input_shape
     output_shape = model.output_shape
 
     # Multiple outputs (not allowed)
