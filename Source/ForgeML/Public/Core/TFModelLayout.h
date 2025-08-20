@@ -32,6 +32,9 @@ namespace TF
 		Image,
 	};
 
+	/// <summary>
+	/// Enum representing the type of a layer in a model.
+	/// </summary>
 	enum class LayerType
 	{
 		Add,

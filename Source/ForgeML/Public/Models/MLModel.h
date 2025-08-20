@@ -34,6 +34,18 @@ namespace TF
 		~MLModel();
 	public:
 		/// <summary>
+		/// Retrieves the model name.
+		/// </summary>
+		/// <returns>The model name</returns>
+		inline const std::string& GetName() const { return mName; }
+
+		/// <summary>
+		/// Retrieves the model version.
+		/// </summary>
+		/// <returns>The loaded model version</returns>
+		inline uint32_t GetModelVersion() const { return mModelVersion.load(); }
+	public:
+		/// <summary>
 		/// Loads Pre-Trained Models. Currently Only Supports loading ONNX or SavedModel format models.
 		/// 
 		/// Non-SavedModel formats will be converted to SavedModel format.
@@ -98,10 +110,15 @@ namespace TF
 									   const std::string& label_name,
 									   const nlohmann::json& label_outputs);
 
+		/// <summary>
+		/// Adds reward training data to the model.
+		/// </summary>
+		/// <param name="state_values">The state value</param>
+		/// <param name="action_values">The action value</param>
+		/// <param name="reward">The reward value</param>
 		void AddRewardData(const nlohmann::json& state_values,
 						   const nlohmann::json& action_values,
-						   float reward,
-						   const nlohmann::json& next_state_values = {});
+						   float reward);
 
 		/// <summary>
 		/// Save the model layout to a JSON file.

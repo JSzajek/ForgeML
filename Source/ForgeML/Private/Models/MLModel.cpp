@@ -280,8 +280,7 @@ namespace TF
 
 	void MLModel::AddRewardData(const nlohmann::json& state_values,
 								const nlohmann::json& action_values, 
-								float reward,
-								const nlohmann::json& next_state_values)
+								float reward)
 	{
 		const std::scoped_lock lock(mTrainingMutex);
 
@@ -289,7 +288,6 @@ namespace TF
 		sample.mState = state_values;
 		sample.mAction = action_values;
 		sample.mReward = reward;
-		//sample.mNextState = next_state_values;
 
 		mRewardTrainingBatch.mSamples.push_back(sample);
 	}

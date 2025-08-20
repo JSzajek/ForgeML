@@ -105,9 +105,6 @@ namespace TF
 			entry["action"] = sample.mAction;
 			entry["reward"] = sample.mReward;
 
-			if (!sample.mNextState.empty())
-				entry["next_state"] = sample.mNextState;
-
 			result.emplace_back(entry);
 		}
 
@@ -126,14 +123,6 @@ namespace TF
 			for (const auto& stateJson : entry.at("state"))
 			{
 				data.mState.push_back(stateJson);
-			}
-
-			if (entry.contains("next_state"))
-			{
-				for (const auto& stateJson : entry.at("next_state"))
-				{
-					data.mState.push_back(stateJson);
-				}
 			}
 
 			data.mAction = entry.at("action");

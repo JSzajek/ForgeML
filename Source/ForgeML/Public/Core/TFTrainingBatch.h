@@ -46,9 +46,6 @@ namespace TF
 		
 		// The reward value from this step
 		float mReward = 0.0f;
-		
-		// Optional: The next state after taking the action
-		nlohmann::json mNextState;
 	};
 
 	/// <summary>
@@ -62,6 +59,9 @@ namespace TF
 			return !mInputs.empty() && !mLabels.empty();
 		}
 	public:
+		/// <summary>
+		/// Clears the training batch, removing all inputs and labels.
+		/// </summary>
 		inline void Clear()
 		{
 			mInputs.clear();
@@ -109,6 +109,9 @@ namespace TF
 			return !mSamples.empty();
 		}
 	public:
+		/// <summary>
+		/// Clears the training batch, removing all samples.
+		/// </summary>
 		inline void Clear()
 		{
 			mSamples.clear();
